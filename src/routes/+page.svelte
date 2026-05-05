@@ -1,12 +1,5 @@
 <script lang="ts">
-	import {
-		buildMonthGrid,
-		dayNameOf,
-		isoDate,
-		shortDate,
-		WORKOUT_DAYS,
-		type DayName
-	} from '$lib/dates';
+	import { buildMonthGrid, isoDate, shortDate } from '$lib/dates';
 	import { goto } from '$app/navigation';
 
 	let { data } = $props();
@@ -15,35 +8,33 @@
 	let grid = $derived(buildMonthGrid(viewMonth));
 
 	const sessionsByDate = $derived(new Map(data.sessions.map((s) => [s.date, s])));
-	const daysByName = $derived(new Map(data.days.map((d) => [d.dayName, d])));
+	const daysById = $derived(new Map(data.days.map((d) => [d.id, d])));
 
-	const todayName = dayNameOf(new Date()) as DayName;
-	const todayDay = $derived(daysByName.get(todayName));
 	const todaysSession = $derived(sessionsByDate.get(data.today));
-
-	function statusForDay(date: Date | null): {
-		isWorkout: boolean;
-		title: string | null;
-		completed: boolean;
-		started: boolean;
-	} {
-		if (!date) return { isWorkout: false, title: null, completed: false, started: false };
-		const name = dayNameOf(date) as DayName;
-		const day = daysByName.get(name);
-		const sess = sessionsByDate.get(isoDate(date));
-		return {
-			isWorkout: WORKOUT_DAYS.includes(name) && day != null,
-			title: day?.title ?? null,
-			completed: !!sess?.completedAt,
-			started: !!sess && !sess.completedAt
-		};
-	}
+	const todaysTemplate = $derived(
+		todaysSession ? daysById.get(todaysSession.dayId) : null
+	);
 
 	function open(date: Date | null) {
 		if (!date) return;
-		const name = dayNameOf(date) as DayName;
-		if (!WORKOUT_DAYS.includes(name)) return;
 		goto(`/workout/${isoDate(date)}`);
+	}
+
+	function pickToday(dayId: number) {
+		goto(`/workout/${data.today}?pick=${dayId}`);
+	}
+
+	function statusForDay(date: Date | null) {
+		if (!date) return null;
+		const sess = sessionsByDate.get(isoDate(date));
+		if (!sess) return null;
+		const tpl = daysById.get(sess.dayId);
+		return {
+			completed: !!sess.completedAt,
+			started: !sess.completedAt,
+			title: tpl?.title ?? '',
+			short: tpl?.title?.replace(/[^A-Z+]/g, '').slice(0, 4) ?? ''
+		};
 	}
 
 	function prevMonth() {
@@ -56,31 +47,38 @@
 
 <h1>Fitness</h1>
 
-{#if todayDay}
-	<div class="today card">
-		<div class="row between">
-			<div>
-				<div class="dim">Today · {shortDate(data.today)}</div>
-				<h2>{todayDay.title}</h2>
-			</div>
+<div class="card today">
+	<div class="dim small">Today · {shortDate(data.today)}</div>
+	{#if todaysTemplate}
+		<div class="row between" style="margin-top: 6px;">
+			<h2 style="margin: 0;">{todaysTemplate.title}</h2>
 			<a href={`/workout/${data.today}`} class="cta">
-				{todaysSession?.completedAt ? '✓ Done' : todaysSession ? 'Resume' : 'Start'}
+				{todaysSession?.completedAt ? '✓ Done' : 'Resume'}
 			</a>
 		</div>
-	</div>
-{:else}
-	<div class="today card rest">
-		<div class="dim">Today · {shortDate(data.today)}</div>
-		<h2>Rest day</h2>
-		<p class="dim">Nothing scheduled. Try a 30-min walk.</p>
-	</div>
-{/if}
+	{:else}
+		<h2 style="margin-top: 6px;">What today?</h2>
+		<div class="picker">
+			{#each data.days as d}
+				<button class="pick" onclick={() => pickToday(d.id)}>
+					<div class="pick-name">{d.title}</div>
+					<div class="pick-sub dim">{d.dayName}</div>
+				</button>
+			{/each}
+		</div>
+		<div class="dim small" style="margin-top: var(--gap-sm); text-align: center;">
+			Or just rest — nothing to log on rest days.
+		</div>
+	{/if}
+</div>
 
 <div class="card month">
 	<div class="row between month-header">
-		<button class="ghost" onclick={prevMonth}>‹</button>
-		<h2 style="margin:0">{viewMonth.toLocaleString(undefined, { month: 'long', year: 'numeric' })}</h2>
-		<button class="ghost" onclick={nextMonth}>›</button>
+		<button class="ghost arrow" onclick={prevMonth}>‹</button>
+		<h2 style="margin:0">
+			{viewMonth.toLocaleString(undefined, { month: 'long', year: 'numeric' })}
+		</h2>
+		<button class="ghost arrow" onclick={nextMonth}>›</button>
 	</div>
 	<div class="dow">
 		{#each ['S', 'M', 'T', 'W', 'T', 'F', 'S'] as d}
@@ -95,18 +93,20 @@
 					type="button"
 					class="cell"
 					class:empty={!cell}
-					class:workout={status.isWorkout}
-					class:completed={status.completed}
-					class:started={status.started}
+					class:completed={status?.completed}
+					class:started={status?.started}
 					class:today={cell && isoDate(cell) === data.today}
-					disabled={!cell || !status.isWorkout}
+					disabled={!cell}
 					onclick={() => open(cell)}
-					title={status.title ?? ''}
+					title={status?.title ?? ''}
 				>
 					{#if cell}
 						<span class="num">{cell.getDate()}</span>
-						{#if status.completed}<span class="dot done">✓</span>{/if}
-						{#if status.started && !status.completed}<span class="dot started">·</span>{/if}
+						{#if status}
+							<span class="badge" class:done={status.completed} class:started={status.started}>
+								{status.short || (status.completed ? '✓' : '·')}
+							</span>
+						{/if}
 					{/if}
 				</button>
 			{/each}
@@ -119,11 +119,11 @@
 		<div>
 			<h3 style="margin:0">Bodyweight</h3>
 			{#if data.lastWeight}
-				<div class="dim">
+				<div class="dim small">
 					Last: {data.lastWeight.weightKg} kg on {shortDate(data.lastWeight.date)}
 				</div>
 			{:else}
-				<div class="dim">No entries yet</div>
+				<div class="dim small">No entries yet</div>
 			{/if}
 		</div>
 		<a href="/bodyweight" class="cta">Log</a>
@@ -134,8 +134,8 @@
 	.today {
 		margin-bottom: var(--gap);
 	}
-	.today.rest h2 {
-		color: var(--text-dim);
+	.small {
+		font-size: 0.85rem;
 	}
 	.cta {
 		background: var(--accent);
@@ -145,15 +145,39 @@
 		border-radius: var(--radius);
 		display: inline-block;
 	}
+	.picker {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--gap-sm);
+		margin-top: var(--gap-sm);
+	}
+	.pick {
+		text-align: left;
+		padding: 12px;
+		min-height: 64px;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		align-items: flex-start;
+	}
+	.pick-name {
+		font-weight: 600;
+		font-size: 0.95rem;
+		line-height: 1.2;
+	}
+	.pick-sub {
+		font-size: 0.75rem;
+	}
 	.month {
 		margin: var(--gap) 0;
 	}
 	.month-header {
 		margin-bottom: var(--gap);
 	}
-	.month-header button {
+	.arrow {
 		min-width: 44px;
-		padding: 8px;
+		min-height: 44px;
+		padding: 0;
 	}
 	.dow {
 		display: grid;
@@ -167,28 +191,26 @@
 		display: grid;
 		grid-template-columns: repeat(7, 1fr);
 		gap: 4px;
+		margin-bottom: 4px;
 	}
 	.cell {
-		aspect-ratio: 1;
+		height: 56px;
+		min-height: 0;
 		border-radius: var(--radius-sm);
-		background: transparent;
+		background: var(--bg-elev);
 		border: 1px solid transparent;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		justify-content: center;
+		justify-content: space-between;
 		padding: 4px;
-		min-height: 44px;
-		gap: 2px;
+		gap: 0;
 		color: var(--text-dim);
+		overflow: hidden;
 	}
-	.cell.workout {
-		background: var(--bg-elev-2);
-		color: var(--text);
-		border-color: var(--border);
-	}
-	.cell.workout:not(:disabled) {
+	.cell:not(:disabled) {
 		cursor: pointer;
+		color: var(--text);
 	}
 	.cell.completed {
 		background: rgba(34, 197, 94, 0.18);
@@ -205,16 +227,26 @@
 		visibility: hidden;
 	}
 	.cell .num {
-		font-size: 0.95rem;
-	}
-	.cell .dot {
-		font-size: 0.7rem;
+		font-size: 0.9rem;
 		line-height: 1;
 	}
-	.cell .dot.done {
-		color: var(--accent);
+	.cell .badge {
+		font-size: 0.55rem;
+		font-weight: 600;
+		line-height: 1;
+		padding: 2px 4px;
+		border-radius: 3px;
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
-	.cell .dot.started {
-		color: var(--warn);
+	.cell .badge.done {
+		background: var(--accent);
+		color: #052e16;
+	}
+	.cell .badge.started {
+		background: var(--warn);
+		color: #1f1300;
 	}
 </style>

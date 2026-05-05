@@ -1,5 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import {
+  deleteSession,
+  getDayById,
   getDayByName,
   getOrCreateSession,
   getSessionByDate,
@@ -9,11 +11,15 @@ import {
 export async function POST({ request }) {
   const body = await request.json();
   const date = String(body.date ?? '');
-  const dayName = String(body.dayName ?? '');
-  if (!date || !dayName) error(400, 'date and dayName required');
+  if (!date) error(400, 'date required');
 
-  const day = getDayByName(dayName);
-  if (!day) error(404, `unknown day: ${dayName}`);
+  // Accept either dayId (preferred — works for any template) or dayName.
+  const dayId = body.dayId == null ? null : Number(body.dayId);
+  const dayName = body.dayName == null ? null : String(body.dayName);
+
+  let day = dayId ? getDayById(dayId) : null;
+  if (!day && dayName) day = getDayByName(dayName);
+  if (!day) error(400, 'dayId or dayName required');
 
   const session = getOrCreateSession(date, day.id);
   return json(session);
@@ -30,5 +36,12 @@ export async function PATCH({ request }) {
   const sessionId = Number(body.sessionId);
   if (!sessionId) error(400, 'sessionId required');
   if (body.complete) markSessionComplete(sessionId);
+  return json({ ok: true });
+}
+
+export async function DELETE({ url }) {
+  const id = Number(url.searchParams.get('id'));
+  if (!id) error(400, 'id required');
+  deleteSession(id);
   return json({ ok: true });
 }

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import RestTimer from '$lib/components/RestTimer.svelte';
 	import SetRow from '$lib/components/SetRow.svelte';
 	import { shortDate } from '$lib/dates';
@@ -10,11 +10,9 @@
 	let mode = $state<'overview' | 'guided'>('overview');
 	let activeIdx = $state(0);
 
-	const sessionId = $derived(data.isWorkoutDay ? data.session.id : null);
-
 	const setsByExercise = $derived.by(() => {
-		const map = new Map<number, typeof data.sets>();
-		if (!data.isWorkoutDay) return map;
+		const map = new Map<number, NonNullable<typeof data.sets>>();
+		if (data.mode !== 'session') return map;
 		for (const s of data.sets) {
 			const arr = map.get(s.exerciseTemplateId) ?? [];
 			arr.push(s);
@@ -25,20 +23,17 @@
 
 	const suggestionsByExercise = $derived.by(() => {
 		const map = new Map<number, { weight: number | null; bumped: boolean; reason: string }>();
-		if (!data.isWorkoutDay) return map;
-		for (const s of data.suggestions) {
-			map.set(s.exerciseTemplateId, s.suggestion);
-		}
+		if (data.mode !== 'session') return map;
+		for (const s of data.suggestions) map.set(s.exerciseTemplateId, s.suggestion);
 		return map;
 	});
 
-	function startGuided() {
-		mode = 'guided';
-		activeIdx = 0;
+	function pick(dayId: number) {
+		goto(`/workout/${data.date}?pick=${dayId}`, { replaceState: true });
 	}
 
 	function next() {
-		if (!data.isWorkoutDay) return;
+		if (data.mode !== 'session') return;
 		if (activeIdx < data.exercises.length - 1) {
 			activeIdx += 1;
 			window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -52,12 +47,12 @@
 	}
 
 	async function finishSession() {
-		if (!sessionId) return;
+		if (data.mode !== 'session') return;
 		try {
 			const res = await fetch('/api/sessions', {
 				method: 'PATCH',
 				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({ sessionId, complete: true })
+				body: JSON.stringify({ sessionId: data.session.id, complete: true })
 			});
 			if (res.ok) {
 				showToast('Workout complete', 'success');
@@ -67,14 +62,36 @@
 			showToast('Could not save completion — will retry', 'error');
 		}
 	}
+
+	async function abandonSession() {
+		if (data.mode !== 'session') return;
+		if (!confirm('Discard this workout session and pick a different one?')) return;
+		const res = await fetch(`/api/sessions?id=${data.session.id}`, { method: 'DELETE' });
+		if (res.ok) {
+			showToast('Session removed', 'info');
+			await invalidateAll();
+			mode = 'overview';
+			activeIdx = 0;
+		} else {
+			showToast('Could not remove session', 'error');
+		}
+	}
 </script>
 
 <a href="/" class="back">← Back</a>
 
-{#if !data.isWorkoutDay}
-	<h1>Rest day</h1>
-	<p class="dim">{data.dayName}, {shortDate(data.date)}</p>
-	<p>No workout scheduled for this day.</p>
+{#if data.mode === 'picker'}
+	<h1>Pick a workout</h1>
+	<div class="dim">{data.dayName}, {shortDate(data.date)}</div>
+
+	<div class="picker">
+		{#each data.templates as tpl}
+			<button class="pick card" onclick={() => pick(tpl.id)}>
+				<div class="pick-title">{tpl.title}</div>
+				<div class="dim small">Default day: {tpl.dayName}</div>
+			</button>
+		{/each}
+	</div>
 {:else}
 	<RestTimer />
 
@@ -82,8 +99,15 @@
 	<div class="dim">{data.dayName}, {shortDate(data.date)}</div>
 
 	{#if mode === 'overview'}
-		<div class="row" style="margin: var(--gap) 0;">
-			<button class="primary" style="flex: 1" onclick={startGuided}>
+		<div class="row" style="margin: var(--gap) 0; gap: var(--gap-sm);">
+			<button
+				class="primary"
+				style="flex: 1;"
+				onclick={() => {
+					mode = 'guided';
+					activeIdx = 0;
+				}}
+			>
 				Start Workout
 			</button>
 		</div>
@@ -119,9 +143,10 @@
 			{/each}
 		</div>
 
-		<div class="row" style="margin-top: var(--gap-lg);">
-			<button class="ghost" style="flex: 1" onclick={finishSession}>
-				Mark workout complete
+		<div class="col" style="margin-top: var(--gap-lg);">
+			<button class="ghost" onclick={finishSession}>Mark workout complete</button>
+			<button class="ghost danger-ghost" onclick={abandonSession}>
+				Discard &amp; pick different workout
 			</button>
 		</div>
 	{:else}
@@ -149,9 +174,7 @@
 					🎯 Suggested: <b>{suggestion.weight}</b> · {suggestion.reason}
 				</div>
 			{:else if suggestion?.weight != null}
-				<div class="suggest dim">
-					Last time: {suggestion.weight}
-				</div>
+				<div class="suggest dim">Last time: {suggestion.weight}</div>
 			{/if}
 		</div>
 
@@ -188,6 +211,26 @@
 		padding: 8px 0;
 		color: var(--text-dim);
 		font-size: 0.9rem;
+	}
+	.small {
+		font-size: 0.8rem;
+	}
+	.picker {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--gap-sm);
+		margin-top: var(--gap);
+	}
+	.pick {
+		text-align: left;
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		min-height: 84px;
+		cursor: pointer;
+	}
+	.pick-title {
+		font-weight: 600;
 	}
 	.exrow {
 		text-align: left;
@@ -243,5 +286,9 @@
 		border-radius: var(--radius);
 		color: var(--text);
 		min-height: 44px;
+	}
+	.danger-ghost {
+		color: var(--danger);
+		border-color: var(--danger);
 	}
 </style>

@@ -1,46 +1,58 @@
 import { error } from '@sveltejs/kit';
 import {
-  getDayByName,
+  getDayById,
   getExercisesForDay,
   getOrCreateSession,
+  getSessionByDate,
   getSetsForSession,
-  getSuggestedWeight
+  getSuggestedWeight,
+  listDays
 } from '$lib/server/queries';
-import { dayNameOf, WORKOUT_DAYS, type DayName } from '$lib/dates';
+import { dayNameOf } from '$lib/dates';
 
-export async function load({ params }) {
+export async function load({ params, url }) {
   const date = params.date;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) error(400, 'invalid date');
 
-  const dayName = dayNameOf(date) as DayName;
-  if (!WORKOUT_DAYS.includes(dayName)) {
+  const dayName = dayNameOf(date);
+
+  // If a session already exists for this date, render it.
+  let sess = getSessionByDate(date);
+
+  // If a ?pick=<dayId> param is supplied, create the session for that template.
+  const pick = Number(url.searchParams.get('pick') ?? 0);
+  if (!sess && pick) {
+    const tpl = getDayById(pick);
+    if (!tpl) error(404, 'unknown workout template');
+    sess = getOrCreateSession(date, tpl.id);
+  }
+
+  if (!sess) {
+    // No session: render a picker with all available templates.
     return {
       date,
       dayName,
-      isWorkoutDay: false as const
+      mode: 'picker' as const,
+      templates: listDays()
     };
   }
 
-  const day = getDayByName(dayName);
-  if (!day) error(404, `no template for ${dayName}`);
-
+  const day = getDayById(sess.dayId);
+  if (!day) error(500, 'session refers to unknown template');
   const exercises = getExercisesForDay(day.id);
-  const session = getOrCreateSession(date, day.id);
-  const sets = getSetsForSession(session.id);
-
-  const suggestions = exercises.map((ex) => ({
-    exerciseTemplateId: ex.id,
-    suggestion: getSuggestedWeight(ex.id, ex.repHigh)
-  }));
+  const sets = getSetsForSession(sess.id);
 
   return {
     date,
     dayName,
-    isWorkoutDay: true as const,
+    mode: 'session' as const,
     day,
+    session: sess,
     exercises,
-    session,
     sets,
-    suggestions
+    suggestions: exercises.map((ex) => ({
+      exerciseTemplateId: ex.id,
+      suggestion: getSuggestedWeight(ex.id, ex.repHigh)
+    }))
   };
 }

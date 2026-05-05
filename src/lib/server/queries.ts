@@ -70,6 +70,10 @@ export function markSessionComplete(sessionId: number) {
     .run();
 }
 
+export function deleteSession(sessionId: number) {
+  return db.delete(session).where(eq(session.id, sessionId)).run();
+}
+
 export function listSessionsInRange(startDate: string, endDate: string) {
   return db
     .select()
