@@ -1,0 +1,295 @@
+{
+  "name": "4-Day Machine-Based Split",
+  "description": "Muscle group focus, knee-conscious legs, 90-min cap.",
+  "days": [
+    {
+      "day_name": "Monday",
+      "title": "Chest + Triceps",
+      "ordering": 1,
+      "exercises": [
+        {
+          "ordering": 1,
+          "name": "Chest Press Machine (flat)",
+          "default_sets": 3,
+          "rep_low": 8,
+          "rep_high": 12,
+          "rest_seconds": 90,
+          "notes_md": "Adjust seat so handles align with mid-chest. Don't fully lock elbows."
+        },
+        {
+          "ordering": 2,
+          "name": "Incline Chest Press Machine",
+          "default_sets": 3,
+          "rep_low": 10,
+          "rep_high": 12,
+          "rest_seconds": 90,
+          "notes_md": "Hits upper chest — the part that builds the 'shelf' under your collarbone."
+        },
+        {
+          "ordering": 3,
+          "name": "Pec Deck Machine (Chest Fly)",
+          "default_sets": 3,
+          "rep_low": 12,
+          "rep_high": 15,
+          "rest_seconds": 60,
+          "notes_md": "Slow squeeze in the middle, controlled return."
+        },
+        {
+          "ordering": 4,
+          "name": "Cable Crossover (high-to-low)",
+          "default_sets": 3,
+          "rep_low": 12,
+          "rep_high": 15,
+          "rest_seconds": 60,
+          "notes_md": "Different angle hits the lower chest. The one cable lift you'll want here."
+        },
+        {
+          "ordering": 5,
+          "name": "Tricep Pushdown Machine",
+          "default_sets": 3,
+          "rep_low": 10,
+          "rep_high": 12,
+          "rest_seconds": 60,
+          "notes_md": "Elbows pinned to your sides, no swinging. (Cable rope works if no machine.)"
+        },
+        {
+          "ordering": 6,
+          "name": "Seated Overhead Tricep Extension Machine",
+          "default_sets": 3,
+          "rep_low": 12,
+          "rep_high": 15,
+          "rest_seconds": 45,
+          "notes_md": "Hits the long head — the part that gives arms thickness."
+        },
+        {
+          "ordering": 7,
+          "name": "Assisted Dip Machine",
+          "default_sets": 3,
+          "rep_low": null,
+          "rep_high": null,
+          "rest_seconds": 60,
+          "notes_md": "AMRAP — as many reps as possible with good form. Lean slightly forward = chest, stay upright = triceps."
+        }
+      ]
+    },
+    {
+      "day_name": "Tuesday",
+      "title": "Back + Biceps",
+      "ordering": 2,
+      "exercises": [
+        {
+          "ordering": 1,
+          "name": "Lat Pulldown (wide grip)",
+          "default_sets": 3,
+          "rep_low": 10,
+          "rep_high": 12,
+          "rest_seconds": 90,
+          "notes_md": "Pull bar to upper chest, lean back ~10°. Don't pull behind your neck."
+        },
+        {
+          "ordering": 2,
+          "name": "Seated Row Machine",
+          "default_sets": 3,
+          "rep_low": 10,
+          "rep_high": 12,
+          "rest_seconds": 90,
+          "notes_md": "Squeeze shoulder blades together at the end. (Cable row works.)"
+        },
+        {
+          "ordering": 3,
+          "name": "Assisted Pull-up Machine",
+          "default_sets": 3,
+          "rep_low": 8,
+          "rep_high": 10,
+          "rest_seconds": 90,
+          "notes_md": "Build toward unassisted pull-ups over time — huge for back width."
+        },
+        {
+          "ordering": 4,
+          "name": "Lat Pulldown (close/neutral grip)",
+          "default_sets": 3,
+          "rep_low": 10,
+          "rep_high": 12,
+          "rest_seconds": 60,
+          "notes_md": "Different grip hits lower lats."
+        },
+        {
+          "ordering": 5,
+          "name": "Reverse Pec Deck (Rear Delt Fly)",
+          "default_sets": 3,
+          "rep_low": 12,
+          "rep_high": 15,
+          "rest_seconds": 60,
+          "notes_md": "Rear delts and upper back — fixes hunched posture."
+        },
+        {
+          "ordering": 6,
+          "name": "Preacher Curl Machine",
+          "default_sets": 3,
+          "rep_low": 10,
+          "rep_high": 12,
+          "rest_seconds": 60,
+          "notes_md": "Strict form, no momentum."
+        },
+        {
+          "ordering": 7,
+          "name": "Bicep Curl Machine (seated)",
+          "default_sets": 3,
+          "rep_low": 10,
+          "rep_high": 12,
+          "rest_seconds": 45,
+          "notes_md": "Two curl variations is fine — biceps recover fast."
+        }
+      ]
+    },
+    {
+      "day_name": "Thursday",
+      "title": "Legs (knee-conscious)",
+      "ordering": 3,
+      "exercises": [
+        {
+          "ordering": 1,
+          "name": "Leg Press",
+          "default_sets": 3,
+          "rep_low": 10,
+          "rep_high": 12,
+          "rest_seconds": 90,
+          "notes_md": "**Don't go super deep with the left knee.** Find a depth that's pain-free, even if higher than the right side."
+        },
+        {
+          "ordering": 2,
+          "name": "Leg Extension",
+          "default_sets": 3,
+          "rep_low": 12,
+          "rep_high": 15,
+          "rest_seconds": 60,
+          "notes_md": "**Moderate weight only.** Slow, controlled, no kicking the weight up. Bad knee = light, slow."
+        },
+        {
+          "ordering": 3,
+          "name": "Seated Leg Curl",
+          "default_sets": 4,
+          "rep_low": 10,
+          "rep_high": 12,
+          "rest_seconds": 60,
+          "notes_md": "**Extra set** — strong hamstrings = ACL protection. Don't skip."
+        },
+        {
+          "ordering": 4,
+          "name": "Lying Leg Curl",
+          "default_sets": 3,
+          "rep_low": 10,
+          "rep_high": 12,
+          "rest_seconds": 60,
+          "notes_md": "Different hamstring angle. (Glute Drive Machine works if available.)"
+        },
+        {
+          "ordering": 5,
+          "name": "Hip Abduction Machine",
+          "default_sets": 3,
+          "rep_low": 12,
+          "rep_high": 15,
+          "rest_seconds": 45,
+          "notes_md": "Outer glutes — burns the love-handle area indirectly + stabilizes the knee."
+        },
+        {
+          "ordering": 6,
+          "name": "Hip Adduction Machine",
+          "default_sets": 3,
+          "rep_low": 12,
+          "rep_high": 15,
+          "rest_seconds": 45,
+          "notes_md": "Inner thighs — often weak in big guys, helps with knee tracking."
+        },
+        {
+          "ordering": 7,
+          "name": "Standing or Seated Calf Raise Machine",
+          "default_sets": 4,
+          "rep_low": 12,
+          "rep_high": 15,
+          "rest_seconds": 45,
+          "notes_md": "Slow eccentric, full stretch at the bottom."
+        }
+      ]
+    },
+    {
+      "day_name": "Friday",
+      "title": "Shoulders + Core",
+      "ordering": 4,
+      "exercises": [
+        {
+          "ordering": 1,
+          "name": "Shoulder Press Machine",
+          "default_sets": 3,
+          "rep_low": 10,
+          "rep_high": 12,
+          "rest_seconds": 90,
+          "notes_md": "Adjust seat so handles start at ear height. Don't lock out hard."
+        },
+        {
+          "ordering": 2,
+          "name": "Lateral Raise Machine",
+          "default_sets": 3,
+          "rep_low": 12,
+          "rep_high": 15,
+          "rest_seconds": 60,
+          "notes_md": "Best machine for shoulder width. (Cable lateral raise works as fallback.)"
+        },
+        {
+          "ordering": 3,
+          "name": "Reverse Pec Deck (rear delts)",
+          "default_sets": 3,
+          "rep_low": 12,
+          "rep_high": 15,
+          "rest_seconds": 60,
+          "notes_md": "Yes, again from Tuesday. Rear delts can take the volume."
+        },
+        {
+          "ordering": 4,
+          "name": "Cable or Machine Front Raise",
+          "default_sets": 3,
+          "rep_low": 12,
+          "rep_high": 15,
+          "rest_seconds": 45,
+          "notes_md": "Most people overdevelop side delts and skip front — keep it balanced."
+        },
+        {
+          "ordering": 5,
+          "name": "Shrug Machine",
+          "default_sets": 3,
+          "rep_low": 12,
+          "rep_high": 15,
+          "rest_seconds": 45,
+          "notes_md": "Traps — adds the 'filled out' look to your upper body. (DB shrugs as fallback.)"
+        },
+        {
+          "ordering": 6,
+          "name": "Ab Crunch Machine",
+          "default_sets": 3,
+          "rep_low": 12,
+          "rep_high": 15,
+          "rest_seconds": 45,
+          "notes_md": "Direct ab work with resistance."
+        },
+        {
+          "ordering": 7,
+          "name": "Captain's Chair / Hanging Knee Raise",
+          "default_sets": 3,
+          "rep_low": 10,
+          "rep_high": 12,
+          "rest_seconds": 45,
+          "notes_md": "Lower abs — the area you care about."
+        },
+        {
+          "ordering": 8,
+          "name": "Back Extension Machine (Roman Chair)",
+          "default_sets": 3,
+          "rep_low": 12,
+          "rep_high": 15,
+          "rest_seconds": 45,
+          "notes_md": "Lower back balance — important for posture and to balance all the ab work."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+services:
+  fitness:
+    image: ghcr.io/asim2202/fitness:latest
+    container_name: fitness
+    ports:
+      - "3000:3000"
+    volumes:
+      - /mnt/user/appdata/fitness:/app/data
+    environment:
+      - DATABASE_URL=file:/app/data/fitness.db
+      - TZ=Asia/Dubai
+    restart: unless-stopped

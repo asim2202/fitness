@@ -1,0 +1,20 @@
+node_modules/
+build/
+.svelte-kit/
+.env
+.env.*
+!.env.example
+
+# Local data — never commit; this lives on Unraid volume in production
+data/
+*.db
+*.db-journal
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Drizzle generated migrations are committed; intermediate journal isn't
+drizzle/.snapshot

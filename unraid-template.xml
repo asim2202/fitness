@@ -1,0 +1,58 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>fitness</Name>
+  <Repository>ghcr.io/asim2202/fitness:latest</Repository>
+  <Registry>https://ghcr.io/asim2202/fitness</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/asim2202/fitness/issues</Support>
+  <Project>https://github.com/asim2202/fitness</Project>
+  <Overview>Personal workout tracker PWA — calendar, guided workout flow with rest timer, set logging, bodyweight + waist tracking, and progress photos. Self-hosted, single-file SQLite, no auth (LAN only — put behind a reverse proxy for HTTPS).</Overview>
+  <Category>HomeAutomation: Productivity:</Category>
+  <WebUI>http://[IP]:[PORT:3000]</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/asim2202/fitness/main/unraid-template.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/asim2202/fitness/main/static/icons/icon-192.png</Icon>
+  <ExtraParams>--health-cmd="node -e \"fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"" --health-interval=30s</ExtraParams>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Description>Personal workout tracker PWA built for a fixed 4-day muscle-group split. Designed to be used during the gym session: guided exercise flow, exercise-specific rest timers, inline form cues, suggested next weight, bodyweight + waist tracking, and progress photo log. Data lives in /mnt/user/appdata/fitness/. Install on your phone via "Add to Home Screen" (HTTPS required — use a reverse proxy).</Description>
+  <Networking>
+    <Mode>bridge</Mode>
+    <Publish>
+      <Port>
+        <HostPort>3000</HostPort>
+        <ContainerPort>3000</ContainerPort>
+        <Protocol>tcp</Protocol>
+      </Port>
+    </Publish>
+  </Networking>
+  <Data>
+    <Volume>
+      <HostDir>/mnt/user/appdata/fitness</HostDir>
+      <ContainerDir>/app/data</ContainerDir>
+      <Mode>rw</Mode>
+    </Volume>
+  </Data>
+  <Environment>
+    <Variable>
+      <Value>Asia/Dubai</Value>
+      <Name>TZ</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>file:/app/data/fitness.db</Value>
+      <Name>DATABASE_URL</Name>
+      <Mode/>
+    </Variable>
+  </Environment>
+  <Labels/>
+  <Config Name="Web UI" Target="3000" Default="3000" Mode="tcp" Description="Container Port: 3000" Type="Port" Display="always" Required="true" Mask="false">3000</Config>
+  <Config Name="App data" Target="/app/data" Default="/mnt/user/appdata/fitness" Mode="rw" Description="SQLite database + progress photos" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/fitness</Config>
+  <Config Name="Time zone" Target="TZ" Default="Asia/Dubai" Mode="" Description="System timezone" Type="Variable" Display="always" Required="false" Mask="false">Asia/Dubai</Config>
+  <Config Name="Database URL" Target="DATABASE_URL" Default="file:/app/data/fitness.db" Mode="" Description="SQLite file path inside container" Type="Variable" Display="advanced" Required="true" Mask="false">file:/app/data/fitness.db</Config>
+</Container>
