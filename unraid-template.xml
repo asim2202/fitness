@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <Container version="2">
-  <Name>fitness</Name>
+  <Name>my-fitness</Name>
   <Repository>ghcr.io/asim2202/fitness:latest</Repository>
   <Registry>https://ghcr.io/asim2202/fitness</Registry>
   <Network>bridge</Network>

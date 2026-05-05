@@ -16,6 +16,11 @@ RUN npm run build && npm prune --omit=dev
 # ----- Stage 2: runtime -----
 FROM node:20-alpine AS runtime
 WORKDIR /app
+
+LABEL org.opencontainers.image.source="https://github.com/asim2202/fitness"
+LABEL org.opencontainers.image.description="Personal workout tracker PWA for self-hosting on Unraid"
+LABEL org.opencontainers.image.licenses="MIT"
+
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOST=0.0.0.0
