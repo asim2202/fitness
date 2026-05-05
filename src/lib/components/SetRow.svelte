@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { invalidateAll } from '$app/navigation';
 	import { untrack } from 'svelte';
 	import { enqueueSet, newClientId, type SetPayload } from '$lib/stores/syncQueue';
 	import { startRest } from '$lib/stores/timer';
@@ -12,6 +13,7 @@
 		restSeconds,
 		isAmrap,
 		suggestedWeight,
+		suggestedReps,
 		existingSet
 	}: {
 		sessionId: number;
@@ -21,13 +23,14 @@
 		restSeconds: number;
 		isAmrap: boolean;
 		suggestedWeight: number | null;
+		suggestedReps: number | null;
 		existingSet: { weight: number | null; reps: number | null; feltEasy: boolean } | undefined;
 	} = $props();
 
 	let weight = $state<number | null>(
 		untrack(() => existingSet?.weight ?? suggestedWeight ?? null)
 	);
-	let reps = $state<number | null>(untrack(() => existingSet?.reps ?? null));
+	let reps = $state<number | null>(untrack(() => existingSet?.reps ?? suggestedReps ?? null));
 	let feltEasy = $state(untrack(() => existingSet?.feltEasy ?? false));
 	let logged = $state(untrack(() => !!existingSet));
 	let saving = $state(false);
@@ -52,6 +55,8 @@
 		startRest(restSeconds, exerciseName);
 		logged = true;
 		saving = false;
+		// Refresh server data so navigating away and back shows the logged set
+		void invalidateAll();
 	}
 
 	function unlock() {

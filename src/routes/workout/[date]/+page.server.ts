@@ -1,11 +1,11 @@
 import { error } from '@sveltejs/kit';
 import {
   getDayById,
+  getExerciseSuggestion,
   getExercisesForDay,
   getOrCreateSession,
   getSessionByDate,
   getSetsForSession,
-  getSuggestedWeight,
   listDays
 } from '$lib/server/queries';
 import { dayNameOf } from '$lib/dates';
@@ -52,7 +52,7 @@ export async function load({ params, url }) {
     sets,
     suggestions: exercises.map((ex) => ({
       exerciseTemplateId: ex.id,
-      suggestion: getSuggestedWeight(ex.id, ex.repHigh)
+      suggestion: getExerciseSuggestion(ex.id, ex.repHigh)
     }))
   };
 }

@@ -22,7 +22,15 @@
 	});
 
 	const suggestionsByExercise = $derived.by(() => {
-		const map = new Map<number, { weight: number | null; bumped: boolean; reason: string }>();
+		const map = new Map<
+			number,
+			{
+				bumped: boolean;
+				bumpAmount: number;
+				reason: string;
+				perSet: { setNumber: number; weight: number | null; reps: number | null }[];
+			}
+		>();
 		if (data.mode !== 'session') return map;
 		for (const s of data.suggestions) map.set(s.exerciseTemplateId, s.suggestion);
 		return map;
@@ -170,18 +178,22 @@
 				<div class="cue">{ex.notesMd}</div>
 			{/if}
 			{#if suggestion?.bumped}
-				<div class="suggest">
-					🎯 Suggested: <b>{suggestion.weight}</b> · {suggestion.reason}
+				<div class="suggest">🎯 {suggestion.reason}</div>
+			{:else if suggestion?.perSet?.length}
+				<div class="suggest dim">
+					Last time:
+					{suggestion.perSet
+						.map((s) => `${s.weight ?? '–'}×${s.reps ?? '–'}`)
+						.join(' · ')}
 				</div>
-			{:else if suggestion?.weight != null}
-				<div class="suggest dim">Last time: {suggestion.weight}</div>
 			{/if}
 		</div>
 
 		<div class="card sets">
-			{#each Array(ex.defaultSets) as _, i}
+			{#each Array(ex.defaultSets) as _, i (`${ex.id}-${i + 1}`)}
 				{@const setNumber = i + 1}
 				{@const existing = exSets.find((s) => s.setNumber === setNumber)}
+				{@const perSet = suggestion?.perSet?.find((s) => s.setNumber === setNumber)}
 				<SetRow
 					sessionId={data.session.id}
 					exerciseTemplateId={ex.id}
@@ -189,7 +201,8 @@
 					{setNumber}
 					restSeconds={ex.restSeconds}
 					{isAmrap}
-					suggestedWeight={suggestion?.weight ?? null}
+					suggestedWeight={perSet?.weight ?? null}
+					suggestedReps={perSet?.reps ?? null}
 					existingSet={existing}
 				/>
 			{/each}

@@ -189,45 +189,48 @@ export function getExerciseHistory(
   return arr.slice(0, limit);
 }
 
-export interface SuggestedWeight {
+export interface PerSetSuggestion {
+  setNumber: number;
   weight: number | null;
-  bumped: boolean;
-  reason: string;
+  reps: number | null;
 }
 
-export function getSuggestedWeight(
+export interface ExerciseSuggestion {
+  bumped: boolean;
+  bumpAmount: number;
+  reason: string;
+  perSet: PerSetSuggestion[];
+}
+
+export function getExerciseSuggestion(
   exerciseTemplateId: number,
   repHigh: number | null
-): SuggestedWeight {
+): ExerciseSuggestion {
   const history = getExerciseHistory(exerciseTemplateId, 1);
   const last = history[0];
   if (!last || last.sets.length === 0) {
-    return { weight: null, bumped: false, reason: 'no prior session' };
-  }
-
-  const topSet = last.sets.reduce(
-    (best, s) => ((s.weight ?? -Infinity) > (best.weight ?? -Infinity) ? s : best),
-    last.sets[0]
-  );
-
-  const lastWeight = topSet.weight;
-  if (lastWeight == null) {
-    return { weight: null, bumped: false, reason: 'last session had no weight logged' };
+    return { bumped: false, bumpAmount: 0, reason: 'no prior session', perSet: [] };
   }
 
   const allSetsHitTopRange =
     repHigh != null &&
     last.sets.every((s) => s.reps != null && s.reps >= repHigh);
   const anyEasy = last.sets.some((s) => s.feltEasy);
+  const bumped = allSetsHitTopRange && anyEasy;
+  const bumpAmount = bumped ? 1 : 0;
 
-  if (allSetsHitTopRange && anyEasy) {
-    return {
-      weight: lastWeight + 1,
-      bumped: true,
-      reason: `Hit ${repHigh}+ on every set last time and ticked "felt easy" — bumping pin by 1.`
-    };
-  }
-  return { weight: lastWeight, bumped: false, reason: 'matching last session' };
+  return {
+    bumped,
+    bumpAmount,
+    reason: bumped
+      ? `Hit ${repHigh}+ on every set last time and ticked "felt easy" — bumping pin by 1.`
+      : 'matching last session',
+    perSet: last.sets.map((s) => ({
+      setNumber: s.setNumber,
+      weight: s.weight == null ? null : s.weight + bumpAmount,
+      reps: s.reps
+    }))
+  };
 }
 
 // Bodyweight ----------
