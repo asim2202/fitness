@@ -41,22 +41,36 @@ db.exec(`INSERT INTO workout_template_exercise
            (2, 1, 'Lat PD wide', 3, 10, 12, 90, ''),
            (2, 2, 'Seated Row', 3, 10, 12, 90, '');`);
 
-// Realistic user data: yesterday's Back+Bi + today's in-progress Chest+Tri
+// Realistic user data: yesterday's Back+Bi + today's in-progress Chest+Tri.
+// Includes a deliberate duplicate at (session=2, exercise=1, set=1) — that
+// row exists in the user's actual prod DB because the old schema had no
+// UNIQUE constraint and the edit-a-logged-set path inserted instead of
+// updating. The migration must keep the LATEST-logged row and drop the rest.
 db.exec(`INSERT INTO session (date, day_id)
          VALUES ('2026-05-04', 2), ('2026-05-05', 1);`);
 db.exec(`INSERT INTO session_set
-         (session_id, exercise_template_id, set_number, weight, reps, felt_easy, client_id)
+         (session_id, exercise_template_id, set_number, weight, reps, felt_easy, logged_at, client_id)
          VALUES
-           (1, 2, 1, 50.0, 12, 0, 'cid-1'),
-           (1, 2, 2, 50.0, 11, 1, 'cid-2'),
-           (1, 2, 3, 50.0, 10, 0, 'cid-3'),
-           (1, 3, 1, 60.0, 10, 0, 'cid-4'),
-           (1, 3, 2, 60.0, 9,  0, 'cid-5'),
-           (2, 1, 1, 40.0, 12, 1, 'cid-6'),
-           (2, 1, 2, 40.0, 11, 0, 'cid-7');`);
+           (1, 2, 1, 50.0, 12, 0, '2026-05-04T10:00:00Z', 'cid-1'),
+           (1, 2, 2, 50.0, 11, 1, '2026-05-04T10:01:00Z', 'cid-2'),
+           (1, 2, 3, 50.0, 10, 0, '2026-05-04T10:02:00Z', 'cid-3'),
+           (1, 3, 1, 60.0, 10, 0, '2026-05-04T10:05:00Z', 'cid-4'),
+           (1, 3, 2, 60.0, 9,  0, '2026-05-04T10:06:00Z', 'cid-5'),
+           -- Today: session 2, exercise 1, set 1 — first attempt
+           (2, 1, 1, 40.0, 12, 1, '2026-05-05T08:00:00Z', 'cid-6'),
+           -- Same position, EDITED later (the dup): higher weight, fewer reps
+           (2, 1, 1, 45.0, 10, 0, '2026-05-05T08:01:30Z', 'cid-6-edit'),
+           (2, 1, 2, 40.0, 11, 0, '2026-05-05T08:03:00Z', 'cid-7');`);
 
 const preSets = db.prepare('SELECT COUNT(*) c FROM session_set').get().c;
-console.log(`Pre-migration: 2 sessions, ${preSets} session_sets`);
+const preDups = db.prepare(`
+  SELECT COUNT(*) AS c FROM (
+    SELECT 1 FROM session_set
+    GROUP BY session_id, exercise_template_id, set_number
+    HAVING COUNT(*) > 1
+  )
+`).get().c;
+console.log(`Pre-migration: 2 sessions, ${preSets} session_sets (${preDups} duplicate position(s))`);
 db.close();
 
 // Now run v1 via the application's migrator
@@ -88,7 +102,8 @@ const counts = {
 };
 console.log('Post-migration counts:', counts);
 
-// Expected: 2 sessions, 3 session_exercise (S1+ex2, S1+ex3, S2+ex1), 7 session_set
+// Expected: 2 sessions, 3 session_exercise (S1+ex2, S1+ex3, S2+ex1).
+// 8 session_sets pre-dedup, 7 post (one duplicate dropped, latest kept).
 const expected = { sessions: 2, session_exercise: 3, session_set: 7 };
 let ok = true;
 for (const k of Object.keys(expected)) {
@@ -110,6 +125,21 @@ const rows = db2.prepare(`
 console.log('Joined view of all sets:');
 for (const r of rows) console.log(' ', r);
 
+// Verify dedup: the surviving (S2, ex1, set 1) should be the EDITED row
+// (weight 45, reps 10, client_id 'cid-6-edit') — NOT the original.
+const dupRow = db2.prepare(`
+  SELECT ss.weight, ss.reps, ss.client_id
+  FROM session_set ss
+  JOIN session_exercise se ON se.id = ss.session_exercise_id
+  WHERE se.session_id = 2 AND se.exercise_template_id = 1 AND ss.set_number = 1
+`).get();
+if (dupRow.client_id !== 'cid-6-edit' || dupRow.weight !== 45) {
+  console.error('FAIL: dedup kept the wrong row:', dupRow);
+  ok = false;
+} else {
+  console.log('Dedup kept latest-logged row:', dupRow, '✓');
+}
+
 // Verify the unique constraints exist
 const idxList = db2.prepare("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name IN ('session_exercise', 'session_set')").all();
 console.log('Indexes:', idxList);
@@ -123,26 +153,23 @@ if (fk.length > 0) {
   console.log('FK check: clean');
 }
 
-// Verify upsert: try logging the same set twice via the new logic shape.
-// We need to check both client_id retry-dedupe AND natural-key upsert.
-db2.prepare(`INSERT INTO session_set (session_exercise_id, set_number, weight, reps, felt_easy, client_id)
-             VALUES (1, 1, 999, 999, 0, 'new-cid-upsert-test')`).run();
-const newRow = db2.prepare(`SELECT id FROM session_set WHERE client_id = 'new-cid-upsert-test'`).get();
-if (newRow) {
-  // Same (session_exercise_id, set_number) should now FAIL with unique violation
-  let threw = false;
-  try {
-    db2.prepare(`INSERT INTO session_set (session_exercise_id, set_number, weight, reps, felt_easy, client_id)
-                 VALUES (1, 1, 100, 5, 0, 'should-fail')`).run();
-  } catch (e) {
-    threw = true;
-  }
-  if (!threw) {
-    console.error('FAIL: duplicate (session_exercise_id, set_number) was allowed!');
-    ok = false;
-  } else {
-    console.log('Unique (session_exercise_id, set_number): enforced ✓');
-  }
+// Verify the unique constraint actually fires when violated.
+let threw = false;
+try {
+  // Pick a known-occupied position from the seed data (session_exercise_id=1
+  // already has set_number=1 after backfill). Inserting another at the same
+  // spot must fail.
+  db2.prepare(`INSERT INTO session_set
+               (session_exercise_id, set_number, weight, reps, felt_easy, client_id)
+               VALUES (1, 1, 100, 5, 0, 'should-fail')`).run();
+} catch {
+  threw = true;
+}
+if (!threw) {
+  console.error('FAIL: duplicate (session_exercise_id, set_number) was allowed!');
+  ok = false;
+} else {
+  console.log('Unique (session_exercise_id, set_number): enforced ✓');
 }
 
 db2.close();

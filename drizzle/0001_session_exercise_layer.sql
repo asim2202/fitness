@@ -29,12 +29,25 @@ CREATE TABLE `session_set__new` (
 	FOREIGN KEY (`session_exercise_id`) REFERENCES `session_exercise`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
+-- Copy rows into the new schema, deduplicating any pre-existing duplicates
+-- at the same (session, exercise, set_number) position. The old schema had
+-- no UNIQUE constraint here, so editing a logged set previously created a
+-- second row instead of updating the first. Keep the most-recently-logged
+-- copy (highest logged_at, breaking ties by highest id).
 INSERT INTO `session_set__new` (`id`, `session_exercise_id`, `set_number`, `weight`, `reps`, `felt_easy`, `logged_at`, `client_id`)
 SELECT s.id, se.id, s.set_number, s.weight, s.reps, s.felt_easy, s.logged_at, s.client_id
-FROM `session_set` s
+FROM (
+  SELECT *,
+    ROW_NUMBER() OVER (
+      PARTITION BY session_id, exercise_template_id, set_number
+      ORDER BY logged_at DESC, id DESC
+    ) AS rn
+  FROM `session_set`
+) s
 JOIN `session_exercise` se
   ON se.session_id = s.session_id
-  AND se.exercise_template_id = s.exercise_template_id;
+  AND se.exercise_template_id = s.exercise_template_id
+WHERE s.rn = 1;
 --> statement-breakpoint
 DROP TABLE `session_set`;
 --> statement-breakpoint
