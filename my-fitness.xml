@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <Container version="2">
-  <Name>my-fitness</Name>
+  <Name>fitness</Name>
   <Repository>ghcr.io/asim2202/fitness:latest</Repository>
   <Registry>https://ghcr.io/asim2202/fitness</Registry>
   <Network>bridge</Network>
@@ -12,7 +12,7 @@
   <Overview>Personal workout tracker PWA — calendar, guided workout flow with rest timer, set logging, bodyweight + waist tracking, and progress photos. Self-hosted, single-file SQLite, no auth (LAN only — put behind a reverse proxy for HTTPS).</Overview>
   <Category>HomeAutomation: Productivity:</Category>
   <WebUI>http://[IP]:[PORT:3000]</WebUI>
-  <TemplateURL>https://raw.githubusercontent.com/asim2202/fitness/main/unraid-template.xml</TemplateURL>
+  <TemplateURL>https://raw.githubusercontent.com/asim2202/fitness/main/my-fitness.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/asim2202/fitness/main/static/icons/icon-192.png</Icon>
   <ExtraParams>--health-cmd="node -e \"fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"" --health-interval=30s</ExtraParams>
   <PostArgs/>

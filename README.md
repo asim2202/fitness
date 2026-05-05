@@ -31,7 +31,7 @@ Built around a fixed 4-day muscle-group split (Mon Chest+Tri / Tue Back+Bi / Thu
 
 1. **Add the container.** In Unraid, *Docker* → *Add Container* → paste the template URL:
    ```
-   https://raw.githubusercontent.com/asim2202/fitness/main/unraid-template.xml
+   https://raw.githubusercontent.com/asim2202/fitness/main/my-fitness.xml
    ```
    Or fill in manually:
    - Repository: `ghcr.io/asim2202/fitness:latest`
