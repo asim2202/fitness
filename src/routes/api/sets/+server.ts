@@ -1,5 +1,5 @@
 import { json, error } from '@sveltejs/kit';
-import { logSet } from '$lib/server/queries';
+import { getOrCreateSessionExercise, logSet } from '$lib/server/queries';
 
 export async function POST({ request }) {
   const body = await request.json();
@@ -12,9 +12,11 @@ export async function POST({ request }) {
     error(400, 'sessionId, exerciseTemplateId, setNumber, clientId required');
   }
 
+  // Server resolves the (session, exercise) → session_exercise row.
+  const sessExercise = getOrCreateSessionExercise(sessionId, exerciseTemplateId);
+
   const created = logSet({
-    sessionId,
-    exerciseTemplateId,
+    sessionExerciseId: sessExercise.id,
     setNumber,
     weight: body.weight == null ? null : Number(body.weight),
     reps: body.reps == null ? null : Number(body.reps),

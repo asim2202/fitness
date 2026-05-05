@@ -28,6 +28,11 @@
 		fileInput?.click();
 	}
 
+	function newClientId(): string {
+		if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
+		return 'pid-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+	}
+
 	async function onFileChange(e: Event) {
 		const input = e.target as HTMLInputElement;
 		const file = input.files?.[0];
@@ -37,6 +42,7 @@
 			const fd = new FormData();
 			fd.append('photo', file);
 			fd.append('takenAt', new Date().toISOString());
+			fd.append('clientId', newClientId());
 			if (angle) fd.append('angle', angle);
 			if (note) fd.append('note', note);
 			const res = await fetch('/api/photos', { method: 'POST', body: fd });

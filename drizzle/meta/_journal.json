@@ -8,6 +8,27 @@
       "when": 1777967614163,
       "tag": "0000_initial",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1777980000000,
+      "tag": "0001_session_exercise_layer",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1777981000000,
+      "tag": "0002_template_soft_delete",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1777981500000,
+      "tag": "0003_photo_idempotency",
+      "breakpoints": true
     }
   ]
 }

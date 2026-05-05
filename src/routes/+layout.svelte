@@ -4,6 +4,7 @@
 	import { page } from '$app/stores';
 	import { initSyncQueue, queueSize } from '$lib/stores/syncQueue';
 	import { toasts } from '$lib/stores/toast';
+	import UpdateBanner from '$lib/components/UpdateBanner.svelte';
 
 	onMount(() => {
 		initSyncQueue();
@@ -11,6 +12,8 @@
 
 	let { children } = $props();
 </script>
+
+<UpdateBanner />
 
 <div class="app">
 	{@render children()}

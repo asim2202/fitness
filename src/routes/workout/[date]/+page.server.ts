@@ -52,7 +52,9 @@ export async function load({ params, url }) {
     sets,
     suggestions: exercises.map((ex) => ({
       exerciseTemplateId: ex.id,
-      suggestion: getExerciseSuggestion(ex.id, ex.repHigh)
+      // Exclude the current session so the suggestion reflects the LAST
+      // session, not what the user just logged in this one.
+      suggestion: getExerciseSuggestion(ex.id, ex.repHigh, sess.id)
     }))
   };
 }

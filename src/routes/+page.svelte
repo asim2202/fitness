@@ -1,6 +1,11 @@
 <script lang="ts">
 	import { buildMonthGrid, isoDate, shortDate } from '$lib/dates';
 	import { goto } from '$app/navigation';
+	import {
+		queueEntries,
+		discardQueued,
+		replayQueue
+	} from '$lib/stores/syncQueue';
 
 	let { data } = $props();
 
@@ -46,6 +51,30 @@
 </script>
 
 <h1>Fitness</h1>
+
+{#if $queueEntries.length > 0}
+	<div class="card queue">
+		<div class="row between" style="margin-bottom: var(--gap-sm);">
+			<h3 style="margin: 0;">{$queueEntries.length} unsynced set{$queueEntries.length > 1 ? 's' : ''}</h3>
+			<button class="primary" onclick={() => replayQueue()}>Retry all</button>
+		</div>
+		<div class="dim small" style="margin-bottom: var(--gap-sm);">
+			Sets that didn't make it to the server. Will retry automatically.
+		</div>
+		{#each $queueEntries as entry (entry.payload.clientId)}
+			<div class="qrow">
+				<div>
+					<div>Set {entry.payload.setNumber} · weight {entry.payload.weight ?? '–'} · reps {entry.payload.reps ?? '–'}</div>
+					<div class="dim small">
+						{entry.attempts} attempt{entry.attempts === 1 ? '' : 's'}
+						· {Math.round((Date.now() - entry.enqueuedAt) / 60000)}m ago
+					</div>
+				</div>
+				<button class="danger mini" onclick={() => discardQueued(entry.payload.clientId)}>×</button>
+			</div>
+		{/each}
+	</div>
+{/if}
 
 <div class="card today">
 	<div class="dim small">Today · {shortDate(data.today)}</div>
@@ -248,5 +277,22 @@
 	.cell .badge.started {
 		background: var(--warn);
 		color: #1f1300;
+	}
+	.queue {
+		border-color: var(--warn);
+		margin-bottom: var(--gap);
+	}
+	.qrow {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: var(--gap-sm);
+		padding: 6px 0;
+		border-top: 1px solid var(--border);
+	}
+	button.mini {
+		min-height: 32px;
+		padding: 4px 10px;
+		font-size: 0.85rem;
 	}
 </style>

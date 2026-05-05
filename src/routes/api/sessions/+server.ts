@@ -21,6 +21,9 @@ export async function POST({ request }) {
   if (!day && dayName) day = getDayByName(dayName);
   if (!day) error(400, 'dayId or dayName required');
 
+  // getOrCreateSession is naturally idempotent on (date, dayId) — returns
+  // the existing row if one exists. So a clientId isn't strictly needed,
+  // but accepted to keep the API shape consistent across endpoints.
   const session = getOrCreateSession(date, day.id);
   return json(session);
 }

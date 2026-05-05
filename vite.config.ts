@@ -6,7 +6,9 @@ export default defineConfig({
   plugins: [
     sveltekit(),
     SvelteKitPWA({
-      registerType: 'autoUpdate',
+      // Don't auto-activate new SWs silently; surface a banner so the user
+      // chooses when to refresh (avoids a forced reload mid-set).
+      registerType: 'prompt',
       injectRegister: 'auto',
       strategies: 'generateSW',
       manifest: {

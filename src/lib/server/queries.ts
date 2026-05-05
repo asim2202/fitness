@@ -1,28 +1,43 @@
-import { and, desc, eq, gte, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, isNull, sql } from 'drizzle-orm';
 import { db } from './db';
 import {
   bodyweightLog,
   photoLog,
   session,
+  sessionExercise,
   sessionSet,
   workoutTemplateDay,
   workoutTemplateExercise,
   type WorkoutTemplateExercise
 } from './schema';
 
+// Templates ----------
+
+// Note on soft-delete: list/active queries filter out deleted templates so
+// they don't clutter the picker. Lookups by ID intentionally include deleted
+// rows so that history pages still render the original exercise name.
+
 export function listDays() {
-  return db.select().from(workoutTemplateDay).orderBy(workoutTemplateDay.ordering).all();
+  return db
+    .select()
+    .from(workoutTemplateDay)
+    .where(isNull(workoutTemplateDay.deletedAt))
+    .orderBy(workoutTemplateDay.ordering)
+    .all();
 }
 
 export function getDayByName(dayName: string) {
   return db
     .select()
     .from(workoutTemplateDay)
-    .where(eq(workoutTemplateDay.dayName, dayName))
+    .where(
+      and(eq(workoutTemplateDay.dayName, dayName), isNull(workoutTemplateDay.deletedAt))
+    )
     .get();
 }
 
 export function getDayById(id: number) {
+  // Lookups by ID return soft-deleted rows too — history pages need them.
   return db.select().from(workoutTemplateDay).where(eq(workoutTemplateDay.id, id)).get();
 }
 
@@ -30,7 +45,12 @@ export function getExercisesForDay(dayId: number): WorkoutTemplateExercise[] {
   return db
     .select()
     .from(workoutTemplateExercise)
-    .where(eq(workoutTemplateExercise.dayId, dayId))
+    .where(
+      and(
+        eq(workoutTemplateExercise.dayId, dayId),
+        isNull(workoutTemplateExercise.deletedAt)
+      )
+    )
     .orderBy(workoutTemplateExercise.ordering)
     .all();
 }
@@ -42,6 +62,8 @@ export function getExerciseById(id: number) {
     .where(eq(workoutTemplateExercise.id, id))
     .get();
 }
+
+// Sessions ----------
 
 export function getOrCreateSession(date: string, dayId: number) {
   const existing = db
@@ -82,32 +104,48 @@ export function listSessionsInRange(startDate: string, endDate: string) {
     .all();
 }
 
-export function getSetsForSession(sessionId: number) {
-  return db
-    .select()
-    .from(sessionSet)
-    .where(eq(sessionSet.sessionId, sessionId))
-    .orderBy(sessionSet.setNumber)
-    .all();
-}
+// Session-exercise (the per-(session, exercise) instance) ----------
 
-export function getSetsForSessionAndExercise(sessionId: number, exerciseTemplateId: number) {
-  return db
+export function getOrCreateSessionExercise(
+  sessionId: number,
+  exerciseTemplateId: number
+) {
+  const existing = db
     .select()
-    .from(sessionSet)
+    .from(sessionExercise)
     .where(
       and(
-        eq(sessionSet.sessionId, sessionId),
-        eq(sessionSet.exerciseTemplateId, exerciseTemplateId)
+        eq(sessionExercise.sessionId, sessionId),
+        eq(sessionExercise.exerciseTemplateId, exerciseTemplateId)
       )
     )
-    .orderBy(sessionSet.setNumber)
+    .get();
+  if (existing) return existing;
+
+  const ex = getExerciseById(exerciseTemplateId);
+  const ordering = ex?.ordering ?? 0;
+
+  const created = db
+    .insert(sessionExercise)
+    .values({ sessionId, exerciseTemplateId, ordering })
+    .returning()
+    .all();
+  return created[0];
+}
+
+export function getSessionExercisesForSession(sessionId: number) {
+  return db
+    .select()
+    .from(sessionExercise)
+    .where(eq(sessionExercise.sessionId, sessionId))
+    .orderBy(sessionExercise.ordering)
     .all();
 }
 
+// Sets ----------
+
 export interface LogSetInput {
-  sessionId: number;
-  exerciseTemplateId: number;
+  sessionExerciseId: number;
   setNumber: number;
   weight: number | null;
   reps: number | null;
@@ -115,32 +153,75 @@ export interface LogSetInput {
   clientId: string;
 }
 
+/**
+ * Upsert a set keyed on (session_exercise_id, set_number). Editing a set
+ * updates the existing row instead of creating a duplicate. The clientId
+ * is also unique, so a retry of the same request is dedupe'd separately.
+ */
 export function logSet(input: LogSetInput) {
-  // dedupe via clientId — if the same clientId is sent twice, return the existing row
-  const existing = db
+  // Retry of same client request → return existing row unchanged.
+  const byClient = db
     .select()
     .from(sessionSet)
     .where(eq(sessionSet.clientId, input.clientId))
     .get();
-  if (existing) return existing;
+  if (byClient) return byClient;
 
-  const created = db
-    .insert(sessionSet)
-    .values({
-      sessionId: input.sessionId,
-      exerciseTemplateId: input.exerciseTemplateId,
-      setNumber: input.setNumber,
-      weight: input.weight,
-      reps: input.reps,
-      feltEasy: input.feltEasy,
-      clientId: input.clientId
-    })
-    .returning()
-    .all();
+  // Existing set at the same position → UPDATE.
+  const byPos = db
+    .select()
+    .from(sessionSet)
+    .where(
+      and(
+        eq(sessionSet.sessionExerciseId, input.sessionExerciseId),
+        eq(sessionSet.setNumber, input.setNumber)
+      )
+    )
+    .get();
+
+  if (byPos) {
+    db.update(sessionSet)
+      .set({
+        weight: input.weight,
+        reps: input.reps,
+        feltEasy: input.feltEasy,
+        loggedAt: new Date().toISOString(),
+        clientId: input.clientId
+      })
+      .where(eq(sessionSet.id, byPos.id))
+      .run();
+    return { ...byPos, ...input };
+  }
+
+  // Otherwise INSERT.
+  const created = db.insert(sessionSet).values(input).returning().all();
   return created[0];
 }
 
+export function getSetsForSession(sessionId: number) {
+  // Returns sets joined with their session_exercise so callers can group.
+  return db
+    .select({
+      id: sessionSet.id,
+      sessionExerciseId: sessionSet.sessionExerciseId,
+      exerciseTemplateId: sessionExercise.exerciseTemplateId,
+      setNumber: sessionSet.setNumber,
+      weight: sessionSet.weight,
+      reps: sessionSet.reps,
+      feltEasy: sessionSet.feltEasy,
+      loggedAt: sessionSet.loggedAt
+    })
+    .from(sessionSet)
+    .innerJoin(sessionExercise, eq(sessionSet.sessionExerciseId, sessionExercise.id))
+    .where(eq(sessionExercise.sessionId, sessionId))
+    .orderBy(sessionExercise.ordering, sessionSet.setNumber)
+    .all();
+}
+
+// History ----------
+
 export interface ExerciseSessionHistory {
+  sessionExerciseId: number;
   sessionId: number;
   date: string;
   sets: Array<{
@@ -155,38 +236,44 @@ export function getExerciseHistory(
   exerciseTemplateId: number,
   limit = 8
 ): ExerciseSessionHistory[] {
-  const rows = db
+  // Fetch the most recent N session_exercise rows for this template.
+  const seRows = db
     .select({
-      sessionId: sessionSet.sessionId,
-      date: session.date,
-      setNumber: sessionSet.setNumber,
-      weight: sessionSet.weight,
-      reps: sessionSet.reps,
-      feltEasy: sessionSet.feltEasy
+      id: sessionExercise.id,
+      sessionId: sessionExercise.sessionId,
+      date: session.date
     })
-    .from(sessionSet)
-    .innerJoin(session, eq(sessionSet.sessionId, session.id))
-    .where(eq(sessionSet.exerciseTemplateId, exerciseTemplateId))
-    .orderBy(desc(session.date), sessionSet.setNumber)
+    .from(sessionExercise)
+    .innerJoin(session, eq(sessionExercise.sessionId, session.id))
+    .where(eq(sessionExercise.exerciseTemplateId, exerciseTemplateId))
+    .orderBy(desc(session.date))
+    .limit(limit)
     .all();
 
-  const byDate = new Map<number, ExerciseSessionHistory>();
-  for (const row of rows) {
-    let entry = byDate.get(row.sessionId);
-    if (!entry) {
-      entry = { sessionId: row.sessionId, date: row.date, sets: [] };
-      byDate.set(row.sessionId, entry);
-    }
-    entry.sets.push({
-      setNumber: row.setNumber,
-      weight: row.weight,
-      reps: row.reps,
-      feltEasy: row.feltEasy
-    });
-  }
-  const arr = Array.from(byDate.values());
-  arr.forEach((s) => s.sets.sort((a, b) => a.setNumber - b.setNumber));
-  return arr.slice(0, limit);
+  if (seRows.length === 0) return [];
+
+  // Fetch sets for those session_exercise rows in one query.
+  const seIds = seRows.map((r) => r.id);
+  const setRows = db
+    .select()
+    .from(sessionSet)
+    .where(sql`${sessionSet.sessionExerciseId} IN (${sql.join(seIds, sql`, `)})`)
+    .orderBy(sessionSet.sessionExerciseId, sessionSet.setNumber)
+    .all();
+
+  return seRows.map((se) => ({
+    sessionExerciseId: se.id,
+    sessionId: se.sessionId,
+    date: se.date,
+    sets: setRows
+      .filter((s) => s.sessionExerciseId === se.id)
+      .map((s) => ({
+        setNumber: s.setNumber,
+        weight: s.weight,
+        reps: s.reps,
+        feltEasy: s.feltEasy
+      }))
+  }));
 }
 
 export interface PerSetSuggestion {
@@ -204,17 +291,22 @@ export interface ExerciseSuggestion {
 
 export function getExerciseSuggestion(
   exerciseTemplateId: number,
-  repHigh: number | null
+  repHigh: number | null,
+  excludeSessionId: number | null = null
 ): ExerciseSuggestion {
-  const history = getExerciseHistory(exerciseTemplateId, 1);
-  const last = history[0];
+  const history = getExerciseHistory(exerciseTemplateId, 5);
+  // Use the most recent session that's NOT the current one (so we don't
+  // suggest based on what the user just logged in this session).
+  const last = history.find(
+    (h) => excludeSessionId == null || h.sessionId !== excludeSessionId
+  );
+
   if (!last || last.sets.length === 0) {
     return { bumped: false, bumpAmount: 0, reason: 'no prior session', perSet: [] };
   }
 
   const allSetsHitTopRange =
-    repHigh != null &&
-    last.sets.every((s) => s.reps != null && s.reps >= repHigh);
+    repHigh != null && last.sets.every((s) => s.reps != null && s.reps >= repHigh);
   const anyEasy = last.sets.some((s) => s.feltEasy);
   const bumped = allSetsHitTopRange && anyEasy;
   const bumpAmount = bumped ? 1 : 0;
@@ -283,9 +375,18 @@ export interface InsertPhotoInput {
   filePath: string;
   angle: string | null;
   note: string;
+  clientId: string | null;
+}
+
+export function getPhotoByClientId(clientId: string) {
+  return db.select().from(photoLog).where(eq(photoLog.clientId, clientId)).get();
 }
 
 export function insertPhoto(input: InsertPhotoInput) {
+  if (input.clientId) {
+    const existing = getPhotoByClientId(input.clientId);
+    if (existing) return existing;
+  }
   const created = db.insert(photoLog).values(input).returning().all();
   return created[0];
 }
